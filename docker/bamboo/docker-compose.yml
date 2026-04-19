@@ -1,0 +1,62 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: bamboo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bamboo
+      POSTGRES_USER: bamboo
+      POSTGRES_PASSWORD: bamboo_pass_change_me
+    ports:
+      - "5546:5432"   # host access to DB if needed
+    volumes:
+      - bamboo_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bamboo -d bamboo"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  bamboo:
+    # community image often used for local/dev. Replace if you build your own image.
+    image: atlassian/bamboo:latest
+    container_name: bamboo
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    ports:
+      - "8085:8085"   # Bamboo UI (default)
+      - "54663:54663" # Bamboo remote agent inbound (optional / agent communication)
+
+    environment:
+      # DB connection (Bamboo will use this to configure the DB during setup)
+      BAMBOO_JDBC_URL: "jdbc:postgresql://postgres:5432/bamboo"
+      BAMBOO_DB_USERNAME: "bamboo"
+      BAMBOO_DB_PASSWORD: "bamboo_pass_change_me"
+
+      # Optional: set JVM opts for Bamboo (tune to your host)
+      BAMBOO_JAVA_OPTS: "-Xms1g -Xmx2g -Djava.awt.headless=true -Duser.timezone=Europe/Luxembourg"
+
+      # Timezone (useful for logs / UI)
+      TZ: "Europe/Luxembourg"
+
+      # If the image supports setting license via env, you can add it here.
+      # For most images you will enter the license in the web UI after first boot.
+      # BAMBOO_LICENSE: "your-license-string"
+
+    volumes:
+      - bamboo_home:/var/atlassian/application-data/bamboo
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- --timeout=5 http://127.0.0.1:8085/ >/dev/null 2>&1 || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  bamboo_pgdata:
+  bamboo_home:

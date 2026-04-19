@@ -1,0 +1,77 @@
+version: "3.9"
+
+
+########################################
+###### BROKEN CONFIG - DO NOT USE ######
+#######################################
+services:
+  uc4-db:
+    image: postgres:16
+    container_name: uc4-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: uc4
+      POSTGRES_USER: uc4
+      POSTGRES_PASSWORD: uc4pass
+    ports:
+      - "5545:5432"
+    volumes:
+      - uc4_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U uc4 -d uc4"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  uc4-app:
+    image: soerenhenning/uc4-app:latest
+    container_name: uc4-app
+    restart: unless-stopped
+    depends_on:
+      uc4-db:
+        condition: service_healthy
+    ports:
+      - "8088:8080"
+    environment:
+      # DB connection
+      DB_HOST: "uc4-db"
+      DB_PORT: "5432"
+      DB_NAME: "uc4"
+      DB_USER: "uc4"
+      DB_PASSWORD: "uc4pass"
+
+      # --- Disable Kafka completely for local/dev ---
+      # Prevent Spring from creating Kafka beans and admin client
+      SPRING_APPLICATION_JSON: >-
+        {"spring":{
+           "autoconfigure":{
+             "exclude":[
+               "org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration",
+               "org.springframework.boot.autoconfigure.kafka.KafkaStreamsDefaultConfiguration"
+             ]
+           },
+           "kafka":{"enabled":false},
+           "jmx":{"enabled":false}
+         },
+         "titan":{"ccp":{"kafka":{"enabled":false}}}
+        }
+
+      # Ensure no empty fallback env overrides bootstrap.servers
+      KAFKA_BOOTSTRAP_SERVERS: ""
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: ""
+
+      TZ: "Europe/Luxembourg"
+      JAVA_OPTS: "-Xms512m -Xmx2g"
+
+    volumes:
+      - uc4_data:/opt/uc4/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 8080 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+
+volumes:
+  uc4_db_data:
+  uc4_data:
