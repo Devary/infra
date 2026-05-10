@@ -7,6 +7,8 @@ NAMESPACE="${RD_OPTION_NAMESPACE:-default}"
 DEPLOYMENT="${RD_OPTION_DEPLOYMENT:-${RD_OPTION_IMAGE}}"
 CONTAINER="${RD_OPTION_CONTAINER:-${RD_OPTION_IMAGE}}"
 PORT="${RD_OPTION_PORT:-8080}"
+REPO_URL="${RD_OPTION_REPO_URL:-git@github.com:Devary/infra.git}"
+REPO_REF="${RD_OPTION_REPO_REF:-main}"
 
 : "${IMAGE:?image required}"
 
@@ -14,10 +16,11 @@ if [[ -z "${TAG}" ]]; then
   TAG="latest"
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+WORKDIR="$(mktemp -d)"
+trap 'rm -rf "${WORKDIR}"' EXIT
 
-echo "REPO_ROOT=${REPO_ROOT}"
+echo "REPO_URL=${REPO_URL}"
+echo "REPO_REF=${REPO_REF}"
 echo "IMAGE=${IMAGE}"
 echo "TAG=${TAG}"
 echo "NAMESPACE=${NAMESPACE}"
@@ -25,4 +28,6 @@ echo "DEPLOYMENT=${DEPLOYMENT}"
 echo "CONTAINER=${CONTAINER}"
 echo "PORT=${PORT}"
 
-bash "${REPO_ROOT}/k8s/deploy.sh" "${IMAGE}" "${TAG}" "${NAMESPACE}" "${DEPLOYMENT}" "${CONTAINER}" "${PORT}"
+git clone --depth 1 --branch "${REPO_REF}" "${REPO_URL}" "${WORKDIR}/infra"
+
+bash "${WORKDIR}/infra/k8s/deploy.sh" "${IMAGE}" "${TAG}" "${NAMESPACE}" "${DEPLOYMENT}" "${CONTAINER}" "${PORT}"
