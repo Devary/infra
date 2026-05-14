@@ -3,12 +3,12 @@
 
   IMAGE="${RD_OPTION_IMAGE:-}"
   TAG="${RD_OPTION_TAG:-latest}"
-  NAMESPACE="${RD_OPTION_NAMESPACE :-default}"
+  NAMESPACE="${RD_OPTION_NAMESPACE:-default}"
   DEPLOYMENT="${RD_OPTION_DEPLOYMENT:-${RD_OPTION_IMAGE##*/}}"
   CONTAINER="${RD_OPTION_CONTAINER:-${RD_OPTION_IMAGE##*/}}"
   PORT="${RD_OPTION_PORT:-8080}"
   REPO_URL="${RD_OPTION_REPO_URL:-git@github.com:Devary/infra.git}"
-  REPO_REF="${RD_OPTION_REPO_REF:- main}"
+  REPO_REF="${RD_OPTION_REPO_REF:-main}"
 
   : "${IMAGE:?image required}"
 
