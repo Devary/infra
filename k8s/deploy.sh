@@ -11,6 +11,7 @@ echo "ARG3_NAMESPACE=${3:-}"
 echo "ARG4_DEPLOYMENT=${4:-}"
 echo "ARG5_CONTAINER=${5:-}"
 echo "ARG6_PORT=${6:-}"
+echo "ARG7_REPLICAS=${7:-}"
 
 IMAGE="${1:?image required}"
 TAG="${2:?tag required}"
@@ -18,6 +19,7 @@ NAMESPACE="${3:-default}"
 DEPLOYMENT="${4:-service}"
 CONTAINER="${5:-service}"
 PORT="${6:-8080}"
+REPLICAS="${7:-1}"
 
 FULL_IMAGE="${IMAGE}:${TAG}"
 
@@ -43,6 +45,7 @@ echo "NAMESPACE=${NAMESPACE}"
 echo "DEPLOYMENT=${DEPLOYMENT}"
 echo "CONTAINER=${CONTAINER}"
 echo "PORT=${PORT}"
+echo "REPLICAS=${REPLICAS}"
 
 kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1 || kubectl create namespace "${NAMESPACE}"
 
@@ -57,6 +60,7 @@ else
       -e "s|__CONTAINER__|${CONTAINER}|g" \
       -e "s|__IMAGE__|${FULL_IMAGE}|g" \
       -e "s|__PORT__|${PORT}|g" \
+      -e "s|__REPLICAS__|${REPLICAS}|g" \
       "${DEPLOYMENT_TEMPLATE}" | kubectl apply -f -
 
   sed -e "s|__NAMESPACE__|${NAMESPACE}|g" \
