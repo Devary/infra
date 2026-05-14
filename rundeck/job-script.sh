@@ -30,4 +30,4 @@ echo "PORT=${PORT}"
 
 #git clone --depth 1 --branch "${REPO_REF}" "${REPO_URL}" "${WORKDIR}/infra"
 
-bash "https://raw.githubusercontent.com/Devary/infra/refs/heads/main/k8s/deploy.sh" "${IMAGE}" "${TAG}" "${NAMESPACE}" "${DEPLOYMENT}" "${CONTAINER}" "${PORT}"
+bash <(curl -fsSL https://raw.githubusercontent.com/Devary/infra/refs/heads/main/k8s/deploy.sh) -- "${IMAGE}" "${TAG}" "${NAMESPACE}" "${DEPLOYMENT}" "${CONTAINER}" "${PORT}"
