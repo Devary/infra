@@ -7,7 +7,7 @@ services:
     restart: unless-stopped
 
     ports:
-      - "31977:4440"
+      - "31978:4440"
 
     environment:
       RUNDECK_GRAILS_URL: http://localhost:31977
