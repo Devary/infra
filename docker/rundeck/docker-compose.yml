@@ -7,11 +7,11 @@ services:
     restart: unless-stopped
 
     ports:
-      - "31977:4440"
+      - "31978:4440"
 
     environment:
-      RUNDECK_GRAILS_URL: http://localhost:31977
-
+      RUNDECK_GRAILS_URL: http://192.168.178.41:31978
+      RUNDECK_SERVER_FORWARDED: "true"
       RUNDECK_DATABASE_DRIVER: org.postgresql.Driver
       RUNDECK_DATABASE_URL: jdbc:postgresql://postgres:5432/rundeck
       RUNDECK_DATABASE_USERNAME: rundeck
