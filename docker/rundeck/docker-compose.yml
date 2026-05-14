@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  rundeck:
+    image: rundeck/rundeck:5.5.0
+    container_name: rundeck
+    restart: unless-stopped
+
+    ports:
+      - "31977:4440"
+
+    environment:
+      RUNDECK_GRAILS_URL: http://localhost:31977
+
+      RUNDECK_DATABASE_DRIVER: org.postgresql.Driver
+      RUNDECK_DATABASE_URL: jdbc:postgresql://postgres:5432/rundeck
+      RUNDECK_DATABASE_USERNAME: rundeck
+      RUNDECK_DATABASE_PASSWORD: rundeckpass
+
+    depends_on:
+      - postgres
+
+    volumes:
+      - rundeck-data:/home/rundeck/server/data
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  postgres:
+    image: postgres:16
+    container_name: rundeck-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: rundeck
+      POSTGRES_USER: rundeck
+      POSTGRES_PASSWORD: rundeckpass
+
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  rundeck-data:
+  postgres-data:
