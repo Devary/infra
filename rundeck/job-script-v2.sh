@@ -7,6 +7,7 @@
   DEPLOYMENT="${RD_OPTION_DEPLOYMENT:-${RD_OPTION_IMAGE##*/}}"
   CONTAINER="${RD_OPTION_CONTAINER:-${RD_OPTION_IMAGE##*/}}"
   PORT="${RD_OPTION_PORT:-8080}"
+  REPLICAS="${RD_OPTION_REPLICAS:-1}"
   REPO_URL="${RD_OPTION_REPO_URL:-git@github.com:Devary/infra.git}"
   REPO_REF="${RD_OPTION_REPO_REF:-main}"
 
@@ -16,6 +17,11 @@
 
   if [[ "${FULL_IMAGE}" == :* || "${FULL_IMAGE}" == *: ]]; then
     echo "ERROR: Invalid image reference: ${FULL_IMAGE}"
+    exit 1
+  fi
+
+  if [[ ! "${REPLICAS}" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: replicas must be a non-negative integer, got: ${REPLICAS}"
     exit 1
   fi
 
@@ -33,6 +39,7 @@
   echo "DEPLOYMENT=${DEPLOYMENT}"
   echo "CONTAINER=${CONTAINER}"
   echo "PORT=${PORT}"
+  echo "REPLICAS=${REPLICAS}"
 
   WORKDIR="$(mktemp -d)"
   trap 'rm -rf "${WORKDIR}"' EXIT
@@ -46,20 +53,23 @@
   if kubectl get deployment "${DEPLOYMENT}" -n "${NAMESPACE}" >/dev/null 2>&1; then
     echo "Updating existing deployment ${DEPLOYMENT} in namespace ${NAMESPACE} to ${FULL_IMAGE}"
     kubectl -n "${NAMESPACE}" set image "deployment/${DEPLOYMENT}" "${CONTAINER}=${FULL_IMAGE}"
+    echo "Scaling deployment ${DEPLOYMENT} in namespace ${NAMESPACE} to ${REPLICAS} replicas"
+    kubectl -n "${NAMESPACE}" scale "deployment/${DEPLOYMENT}" --replicas="${REPLICAS}"
   else
     echo "Creating deployment ${DEPLOYMENT} in namespace ${NAMESPACE} with image ${FULL_IMAGE}"
 
     sed \
       -e "s|__NAMESPACE__|${NAMESPACE}|g" \
-      -e "s|__DEPLOYMENT__|${DEPLOYMENT}| g" \
+      -e "s|__DEPLOYMENT__|${DEPLOYMENT}|g" \
       -e "s|__CONTAINER__|${CONTAINER}|g" \
       -e "s|__IMAGE__|${FULL_IMAGE}|g" \
       -e "s|__PORT__|${PORT}|g" \
+      -e "s|__REPLICAS__|${REPLICAS}|g" \
       k8s/deployment.yaml | kubectl apply -f -
 
     sed \
       -e "s|__NAMESPACE__|${NAMESPACE}|g" \
-      -e "s|__DEPLOYMENT__|${DEPLOYMENT}| g" \
+      -e "s|__DEPLOYMENT__|${DEPLOYMENT}|g" \
       -e "s|__PORT__|${PORT}|g" \
       k8s/service.yaml | kubectl apply -f -
   fi

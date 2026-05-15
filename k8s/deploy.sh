@@ -28,6 +28,11 @@ if [[ "${FULL_IMAGE}" == :* || "${FULL_IMAGE}" == *: ]]; then
   exit 1
 fi
 
+if [[ ! "${REPLICAS}" =~ ^[0-9]+$ ]]; then
+  echo "ERROR: replicas must be a non-negative integer, got: ${REPLICAS}"
+  exit 1
+fi
+
 if ! command -v kubectl >/dev/null 2>&1; then
   echo "ERROR: kubectl is not installed in the Rundeck execution environment"
   exit 127
@@ -52,6 +57,8 @@ kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1 || kubectl create namespace
 if kubectl get deployment "${DEPLOYMENT}" -n "${NAMESPACE}" >/dev/null 2>&1; then
   echo "Updating existing deployment ${DEPLOYMENT} in namespace ${NAMESPACE} to ${FULL_IMAGE}"
   kubectl -n "${NAMESPACE}" set image "deployment/${DEPLOYMENT}" "${CONTAINER}=${FULL_IMAGE}"
+  echo "Scaling deployment ${DEPLOYMENT} in namespace ${NAMESPACE} to ${REPLICAS} replicas"
+  kubectl -n "${NAMESPACE}" scale "deployment/${DEPLOYMENT}" --replicas="${REPLICAS}"
 else
   echo "Creating deployment ${DEPLOYMENT} in namespace ${NAMESPACE} with image ${FULL_IMAGE}"
 
