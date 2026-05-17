@@ -13,9 +13,13 @@ spec:
       labels:
         app: __DEPLOYMENT__
     spec:
+      serviceAccountName: __SERVICE_ACCOUNT__
       containers:
         - name: __CONTAINER__
           image: __IMAGE__
           imagePullPolicy: Always
+          env:
+            - name: VAULT_URL
+              value: "__VAULT_URL__"
           ports:
             - containerPort: __PORT__
