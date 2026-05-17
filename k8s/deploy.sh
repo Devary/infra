@@ -22,7 +22,7 @@ DEPLOYMENT="${4:-service}"
 CONTAINER="${5:-service}"
 PORT="${6:-8080}"
 REPLICAS="${7:-1}"
-VAULT_URL="${8:?vault url required}"
+VAULT_URL="${8:-${VAULT_URL:-http://192.168.178.41:8200}}"
 SERVICE_ACCOUNT="${9:-default}"
 
 FULL_IMAGE="${IMAGE}:${TAG}"
