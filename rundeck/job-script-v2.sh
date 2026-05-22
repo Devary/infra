@@ -86,3 +86,12 @@ fi
 kubectl -n "${NAMESPACE}" rollout status "deployment/${DEPLOYMENT}" --timeout=300s
 kubectl -n "${NAMESPACE}" get deployment "${DEPLOYMENT}" -o wide
 kubectl -n "${NAMESPACE}" get pods -l app="${DEPLOYMENT}" -o wide
+
+if command -v vault >/dev/null 2>&1; then
+  echo "Validating Vault Kubernetes login for service account ${SERVICE_ACCOUNT}"
+  JWT="$(kubectl -n "${NAMESPACE}" create token "${SERVICE_ACCOUNT}")"
+  vault write -field=token auth/kubernetes/login role="${SERVICE_ACCOUNT}" jwt="${JWT}" >/dev/null
+  echo "Vault Kubernetes login check passed for role ${SERVICE_ACCOUNT}"
+else
+  echo "WARNING: vault CLI not found; skipping Vault Kubernetes login check"
+fi
