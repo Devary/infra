@@ -9,7 +9,7 @@ CONTAINER="${RD_OPTION_CONTAINER:-${RD_OPTION_IMAGE##*/}}"
 PORT="${RD_OPTION_PORT:-8080}"
 REPLICAS="${RD_OPTION_REPLICAS:-1}"
 VAULT_URL="${RD_OPTION_VAULTURL:-${VAULT_URL:-http://192.168.178.41:8200}}"
-SERVICE_ACCOUNT="${RD_OPTION_SERVICEACCOUNT:-default}"
+SERVICE_ACCOUNT="${RD_OPTION_SERVICEACCOUNT:-service-template}"
 REPO_URL="${RD_OPTION_REPO_URL:-git@github.com:Devary/infra.git}"
 REPO_REF="${RD_OPTION_REPO_REF:-main}"
 
@@ -53,6 +53,7 @@ git clone --depth 1 --branch "${REPO_REF}" "${REPO_URL}" "${WORKDIR}/infra"
 cd "${WORKDIR}/infra"
 
 kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1 || kubectl create namespace "${NAMESPACE}"
+kubectl -n "${NAMESPACE}" get serviceaccount "${SERVICE_ACCOUNT}" >/dev/null 2>&1 || kubectl -n "${NAMESPACE}" create serviceaccount "${SERVICE_ACCOUNT}"
 
 if kubectl get deployment "${DEPLOYMENT}" -n "${NAMESPACE}" >/dev/null 2>&1; then
   echo "Updating existing deployment ${DEPLOYMENT} in namespace ${NAMESPACE} to ${FULL_IMAGE}"
