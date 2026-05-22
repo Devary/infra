@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOYMENT_TEMPLATE="${SCRIPT_DIR}/deployment.yaml"
 SERVICE_TEMPLATE="${SCRIPT_DIR}/service.yaml"
+VAULT_AUTH_CHECK_SCRIPT="${SCRIPT_DIR}/validate-vault-k8s-auth.sh"
 
 echo "ARG1_IMAGE=${1:-}"
 echo "ARG2_TAG=${2:-}"
@@ -44,6 +45,11 @@ fi
 
 if [[ ! -f "${DEPLOYMENT_TEMPLATE}" || ! -f "${SERVICE_TEMPLATE}" ]]; then
   echo "ERROR: deployment templates not found beside deploy.sh"
+  exit 1
+fi
+
+if [[ ! -f "${VAULT_AUTH_CHECK_SCRIPT}" ]]; then
+  echo "ERROR: Vault auth validation script not found at ${VAULT_AUTH_CHECK_SCRIPT}"
   exit 1
 fi
 
@@ -91,11 +97,4 @@ kubectl -n "${NAMESPACE}" rollout status "deployment/${DEPLOYMENT}" --timeout=30
 kubectl -n "${NAMESPACE}" get deployment "${DEPLOYMENT}" -o wide
 kubectl -n "${NAMESPACE}" get pods -l app="${DEPLOYMENT}" -o wide
 
-if command -v vault >/dev/null 2>&1; then
-  echo "Validating Vault Kubernetes login for service account ${SERVICE_ACCOUNT}"
-  JWT="$(kubectl -n "${NAMESPACE}" create token "${SERVICE_ACCOUNT}")"
-  vault write -field=token auth/kubernetes/login role="${SERVICE_ACCOUNT}" jwt="${JWT}" >/dev/null
-  echo "Vault Kubernetes login check passed for role ${SERVICE_ACCOUNT}"
-else
-  echo "WARNING: vault CLI not found; skipping Vault Kubernetes login check"
-fi
+bash "${VAULT_AUTH_CHECK_SCRIPT}" "${NAMESPACE}" "${SERVICE_ACCOUNT}" "${SERVICE_ACCOUNT}"
