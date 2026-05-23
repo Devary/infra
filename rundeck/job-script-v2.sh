@@ -87,4 +87,4 @@ kubectl -n "${NAMESPACE}" rollout status "deployment/${DEPLOYMENT}" --timeout=30
 kubectl -n "${NAMESPACE}" get deployment "${DEPLOYMENT}" -o wide
 kubectl -n "${NAMESPACE}" get pods -l app="${DEPLOYMENT}" -o wide
 
-bash k8s/validate-vault-k8s-auth.sh "${NAMESPACE}" "${SERVICE_ACCOUNT}" "${SERVICE_ACCOUNT}"
+bash k8s/validate-vault-k8s-auth.sh "${NAMESPACE}" "${SERVICE_ACCOUNT}" "${SERVICE_ACCOUNT}" "${VAULT_URL}"
