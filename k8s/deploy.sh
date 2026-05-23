@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOYMENT_TEMPLATE="${SCRIPT_DIR}/deployment.yaml"
 SERVICE_TEMPLATE="${SCRIPT_DIR}/service.yaml"
+VAULT_AUTH_BOOTSTRAP_SCRIPT="${SCRIPT_DIR}/bootstrap-vault-k8s-auth.sh"
 VAULT_AUTH_CHECK_SCRIPT="${SCRIPT_DIR}/validate-vault-k8s-auth.sh"
 
 echo "ARG1_IMAGE=${1:-}"
@@ -25,6 +26,8 @@ PORT="${6:-8080}"
 REPLICAS="${7:-1}"
 VAULT_URL="${8:-${VAULT_URL:-http://192.168.178.41:8200}}"
 SERVICE_ACCOUNT="${9:-service-template}"
+VAULT_KV_MOUNT="${VAULT_KV_MOUNT:-anipoll}"
+VAULT_SECRET_PATH="${VAULT_SECRET_PATH:-${DEPLOYMENT}}"
 
 FULL_IMAGE="${IMAGE}:${TAG}"
 
@@ -48,6 +51,11 @@ if [[ ! -f "${DEPLOYMENT_TEMPLATE}" || ! -f "${SERVICE_TEMPLATE}" ]]; then
   exit 1
 fi
 
+if [[ ! -f "${VAULT_AUTH_BOOTSTRAP_SCRIPT}" ]]; then
+  echo "ERROR: Vault auth bootstrap script not found at ${VAULT_AUTH_BOOTSTRAP_SCRIPT}"
+  exit 1
+fi
+
 if [[ ! -f "${VAULT_AUTH_CHECK_SCRIPT}" ]]; then
   echo "ERROR: Vault auth validation script not found at ${VAULT_AUTH_CHECK_SCRIPT}"
   exit 1
@@ -63,6 +71,8 @@ echo "PORT=${PORT}"
 echo "REPLICAS=${REPLICAS}"
 echo "VAULT_URL=${VAULT_URL}"
 echo "SERVICE_ACCOUNT=${SERVICE_ACCOUNT}"
+echo "VAULT_KV_MOUNT=${VAULT_KV_MOUNT}"
+echo "VAULT_SECRET_PATH=${VAULT_SECRET_PATH}"
 
 kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1 || kubectl create namespace "${NAMESPACE}"
 kubectl -n "${NAMESPACE}" get serviceaccount "${SERVICE_ACCOUNT}" >/dev/null 2>&1 || kubectl -n "${NAMESPACE}" create serviceaccount "${SERVICE_ACCOUNT}"
@@ -92,6 +102,8 @@ else
       -e "s|__PORT__|${PORT}|g" \
       "${SERVICE_TEMPLATE}" | kubectl apply -f -
 fi
+
+bash "${VAULT_AUTH_BOOTSTRAP_SCRIPT}" "${NAMESPACE}" "${SERVICE_ACCOUNT}" "${SERVICE_ACCOUNT}" "${VAULT_URL}" "${VAULT_KV_MOUNT}" "${VAULT_SECRET_PATH}"
 
 kubectl -n "${NAMESPACE}" rollout status "deployment/${DEPLOYMENT}" --timeout=300s
 kubectl -n "${NAMESPACE}" get deployment "${DEPLOYMENT}" -o wide

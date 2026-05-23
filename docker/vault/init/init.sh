@@ -9,8 +9,9 @@ done
 
 echo "Vault is up. Provisioning..."
 
-# 1) KV secret for config source (KV v2 is already enabled at secret/ in dev mode)
-vault kv put secret/myapps/vault-quickstart/config a-private-key=123456
+# 1) Keep the original quickstart example only.
+# App-specific KV mounts/secrets are managed externally and should not be seeded here.
+vault kv put secret/myapps/vault-quickstart/config a-private-key=123456 >/dev/null
 
 # 2) Policy for KV v2 path (note the /data/ part for v2 policies)
 cat <<'EOF' | vault policy write vault-quickstart-policy -

@@ -10,6 +10,8 @@ PORT="${RD_OPTION_PORT:-8080}"
 REPLICAS="${RD_OPTION_REPLICAS:-1}"
 VAULT_URL="${RD_OPTION_VAULTURL:-${VAULT_URL:-http://192.168.178.41:8200}}"
 SERVICE_ACCOUNT="${RD_OPTION_SERVICEACCOUNT:-service-template}"
+VAULT_KV_MOUNT="${RD_OPTION_VAULTKVMOUNT:-${VAULT_KV_MOUNT:-anipoll}}"
+VAULT_SECRET_PATH="${RD_OPTION_VAULTSECRETPATH:-${VAULT_SECRET_PATH:-${DEPLOYMENT}}}"
 REPO_URL="${RD_OPTION_REPO_URL:-git@github.com:Devary/infra.git}"
 REPO_REF="${RD_OPTION_REPO_REF:-main}"
 
@@ -44,6 +46,8 @@ echo "PORT=${PORT}"
 echo "REPLICAS=${REPLICAS}"
 echo "VAULT_URL=${VAULT_URL}"
 echo "SERVICE_ACCOUNT=${SERVICE_ACCOUNT}"
+echo "VAULT_KV_MOUNT=${VAULT_KV_MOUNT}"
+echo "VAULT_SECRET_PATH=${VAULT_SECRET_PATH}"
 
 WORKDIR="$(mktemp -d)"
 trap 'rm -rf "${WORKDIR}"' EXIT
@@ -51,6 +55,16 @@ trap 'rm -rf "${WORKDIR}"' EXIT
 git clone --depth 1 --branch "${REPO_REF}" "${REPO_URL}" "${WORKDIR}/infra"
 
 cd "${WORKDIR}/infra"
+
+if [[ ! -f k8s/bootstrap-vault-k8s-auth.sh ]]; then
+  echo "ERROR: Vault auth bootstrap script not found at k8s/bootstrap-vault-k8s-auth.sh"
+  exit 1
+fi
+
+if [[ ! -f k8s/validate-vault-k8s-auth.sh ]]; then
+  echo "ERROR: Vault auth validation script not found at k8s/validate-vault-k8s-auth.sh"
+  exit 1
+fi
 
 kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1 || kubectl create namespace "${NAMESPACE}"
 kubectl -n "${NAMESPACE}" get serviceaccount "${SERVICE_ACCOUNT}" >/dev/null 2>&1 || kubectl -n "${NAMESPACE}" create serviceaccount "${SERVICE_ACCOUNT}"
@@ -82,6 +96,8 @@ else
     -e "s|__PORT__|${PORT}|g" \
     k8s/service.yaml | kubectl apply -f -
 fi
+
+bash k8s/bootstrap-vault-k8s-auth.sh "${NAMESPACE}" "${SERVICE_ACCOUNT}" "${SERVICE_ACCOUNT}" "${VAULT_URL}" "${VAULT_KV_MOUNT}" "${VAULT_SECRET_PATH}"
 
 kubectl -n "${NAMESPACE}" rollout status "deployment/${DEPLOYMENT}" --timeout=300s
 kubectl -n "${NAMESPACE}" get deployment "${DEPLOYMENT}" -o wide
