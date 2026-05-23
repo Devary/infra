@@ -28,6 +28,7 @@ VAULT_URL="${8:-${VAULT_URL:-http://192.168.178.41:8200}}"
 SERVICE_ACCOUNT="${9:-service-template}"
 VAULT_KV_MOUNT="${VAULT_KV_MOUNT:-anipoll}"
 VAULT_SECRET_PATH="${VAULT_SECRET_PATH:-${DEPLOYMENT}}"
+VAULT_BOOTSTRAP_ENABLED="${VAULT_BOOTSTRAP_ENABLED:-false}"
 
 FULL_IMAGE="${IMAGE}:${TAG}"
 
@@ -51,7 +52,7 @@ if [[ ! -f "${DEPLOYMENT_TEMPLATE}" || ! -f "${SERVICE_TEMPLATE}" ]]; then
   exit 1
 fi
 
-if [[ ! -f "${VAULT_AUTH_BOOTSTRAP_SCRIPT}" ]]; then
+if [[ "${VAULT_BOOTSTRAP_ENABLED}" == "true" && ! -f "${VAULT_AUTH_BOOTSTRAP_SCRIPT}" ]]; then
   echo "ERROR: Vault auth bootstrap script not found at ${VAULT_AUTH_BOOTSTRAP_SCRIPT}"
   exit 1
 fi
@@ -73,6 +74,7 @@ echo "VAULT_URL=${VAULT_URL}"
 echo "SERVICE_ACCOUNT=${SERVICE_ACCOUNT}"
 echo "VAULT_KV_MOUNT=${VAULT_KV_MOUNT}"
 echo "VAULT_SECRET_PATH=${VAULT_SECRET_PATH}"
+echo "VAULT_BOOTSTRAP_ENABLED=${VAULT_BOOTSTRAP_ENABLED}"
 
 kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1 || kubectl create namespace "${NAMESPACE}"
 kubectl -n "${NAMESPACE}" get serviceaccount "${SERVICE_ACCOUNT}" >/dev/null 2>&1 || kubectl -n "${NAMESPACE}" create serviceaccount "${SERVICE_ACCOUNT}"
@@ -103,7 +105,11 @@ else
       "${SERVICE_TEMPLATE}" | kubectl apply -f -
 fi
 
-bash "${VAULT_AUTH_BOOTSTRAP_SCRIPT}" "${NAMESPACE}" "${SERVICE_ACCOUNT}" "${SERVICE_ACCOUNT}" "${VAULT_URL}" "${VAULT_KV_MOUNT}" "${VAULT_SECRET_PATH}"
+if [[ "${VAULT_BOOTSTRAP_ENABLED}" == "true" ]]; then
+  bash "${VAULT_AUTH_BOOTSTRAP_SCRIPT}" "${NAMESPACE}" "${SERVICE_ACCOUNT}" "${SERVICE_ACCOUNT}" "${VAULT_URL}" "${VAULT_KV_MOUNT}" "${VAULT_SECRET_PATH}"
+else
+  echo "Skipping Vault auth bootstrap (VAULT_BOOTSTRAP_ENABLED=${VAULT_BOOTSTRAP_ENABLED})"
+fi
 
 kubectl -n "${NAMESPACE}" rollout status "deployment/${DEPLOYMENT}" --timeout=300s
 kubectl -n "${NAMESPACE}" get deployment "${DEPLOYMENT}" -o wide

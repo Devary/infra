@@ -12,6 +12,7 @@ VAULT_URL="${RD_OPTION_VAULTURL:-${VAULT_URL:-http://192.168.178.41:8200}}"
 SERVICE_ACCOUNT="${RD_OPTION_SERVICEACCOUNT:-service-template}"
 VAULT_KV_MOUNT="${RD_OPTION_VAULTKVMOUNT:-${VAULT_KV_MOUNT:-anipoll}}"
 VAULT_SECRET_PATH="${RD_OPTION_VAULTSECRETPATH:-${VAULT_SECRET_PATH:-${DEPLOYMENT}}}"
+VAULT_BOOTSTRAP_ENABLED="${RD_OPTION_VAULTBOOTSTRAP:-${VAULT_BOOTSTRAP_ENABLED:-false}}"
 REPO_URL="${RD_OPTION_REPO_URL:-git@github.com:Devary/infra.git}"
 REPO_REF="${RD_OPTION_REPO_REF:-main}"
 
@@ -48,6 +49,7 @@ echo "VAULT_URL=${VAULT_URL}"
 echo "SERVICE_ACCOUNT=${SERVICE_ACCOUNT}"
 echo "VAULT_KV_MOUNT=${VAULT_KV_MOUNT}"
 echo "VAULT_SECRET_PATH=${VAULT_SECRET_PATH}"
+echo "VAULT_BOOTSTRAP_ENABLED=${VAULT_BOOTSTRAP_ENABLED}"
 
 WORKDIR="$(mktemp -d)"
 trap 'rm -rf "${WORKDIR}"' EXIT
@@ -56,7 +58,7 @@ git clone --depth 1 --branch "${REPO_REF}" "${REPO_URL}" "${WORKDIR}/infra"
 
 cd "${WORKDIR}/infra"
 
-if [[ ! -f k8s/bootstrap-vault-k8s-auth.sh ]]; then
+if [[ "${VAULT_BOOTSTRAP_ENABLED}" == "true" && ! -f k8s/bootstrap-vault-k8s-auth.sh ]]; then
   echo "ERROR: Vault auth bootstrap script not found at k8s/bootstrap-vault-k8s-auth.sh"
   exit 1
 fi
@@ -97,7 +99,11 @@ else
     k8s/service.yaml | kubectl apply -f -
 fi
 
-bash k8s/bootstrap-vault-k8s-auth.sh "${NAMESPACE}" "${SERVICE_ACCOUNT}" "${SERVICE_ACCOUNT}" "${VAULT_URL}" "${VAULT_KV_MOUNT}" "${VAULT_SECRET_PATH}"
+if [[ "${VAULT_BOOTSTRAP_ENABLED}" == "true" ]]; then
+  bash k8s/bootstrap-vault-k8s-auth.sh "${NAMESPACE}" "${SERVICE_ACCOUNT}" "${SERVICE_ACCOUNT}" "${VAULT_URL}" "${VAULT_KV_MOUNT}" "${VAULT_SECRET_PATH}"
+else
+  echo "Skipping Vault auth bootstrap (VAULT_BOOTSTRAP_ENABLED=${VAULT_BOOTSTRAP_ENABLED})"
+fi
 
 kubectl -n "${NAMESPACE}" rollout status "deployment/${DEPLOYMENT}" --timeout=300s
 kubectl -n "${NAMESPACE}" get deployment "${DEPLOYMENT}" -o wide
