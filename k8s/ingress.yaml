@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: __DEPLOYMENT__
+  namespace: __NAMESPACE__
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: __INGRESS_HOST__
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: __DEPLOYMENT__
+                port:
+                  number: 80

@@ -10,6 +10,7 @@ PORT="${RD_OPTION_PORT:-8080}"
 REPLICAS="${RD_OPTION_REPLICAS:-1}"
 VAULT_URL="${RD_OPTION_VAULTURL:-${VAULT_URL:-http://192.168.178.41:8200}}"
 SERVICE_ACCOUNT="${RD_OPTION_SERVICEACCOUNT:-service-template}"
+INGRESS_HOST="${RD_OPTION_INGRESSHOST:-${INGRESS_HOST:-${DEPLOYMENT}.192.168.178.41.nip.io}}"
 VAULT_KV_MOUNT="${RD_OPTION_VAULTKVMOUNT:-${VAULT_KV_MOUNT:-anipoll}}"
 VAULT_SECRET_PATH="${RD_OPTION_VAULTSECRETPATH:-${VAULT_SECRET_PATH:-${DEPLOYMENT}}}"
 VAULT_BOOTSTRAP_ENABLED="${RD_OPTION_VAULTBOOTSTRAP:-${VAULT_BOOTSTRAP_ENABLED:-false}}"
@@ -47,6 +48,7 @@ echo "PORT=${PORT}"
 echo "REPLICAS=${REPLICAS}"
 echo "VAULT_URL=${VAULT_URL}"
 echo "SERVICE_ACCOUNT=${SERVICE_ACCOUNT}"
+echo "INGRESS_HOST=${INGRESS_HOST}"
 echo "VAULT_KV_MOUNT=${VAULT_KV_MOUNT}"
 echo "VAULT_SECRET_PATH=${VAULT_SECRET_PATH}"
 echo "VAULT_BOOTSTRAP_ENABLED=${VAULT_BOOTSTRAP_ENABLED}"
@@ -99,6 +101,12 @@ else
     k8s/service.yaml | kubectl apply -f -
 fi
 
+sed \
+  -e "s|__NAMESPACE__|${NAMESPACE}|g" \
+  -e "s|__DEPLOYMENT__|${DEPLOYMENT}|g" \
+  -e "s|__INGRESS_HOST__|${INGRESS_HOST}|g" \
+  k8s/ingress.yaml | kubectl apply -f -
+
 if [[ "${VAULT_BOOTSTRAP_ENABLED}" == "true" ]]; then
   bash k8s/bootstrap-vault-k8s-auth.sh "${NAMESPACE}" "${SERVICE_ACCOUNT}" "${SERVICE_ACCOUNT}" "${VAULT_URL}" "${VAULT_KV_MOUNT}" "${VAULT_SECRET_PATH}"
 else
@@ -110,3 +118,5 @@ kubectl -n "${NAMESPACE}" get deployment "${DEPLOYMENT}" -o wide
 kubectl -n "${NAMESPACE}" get pods -l app="${DEPLOYMENT}" -o wide
 
 bash k8s/validate-vault-k8s-auth.sh "${NAMESPACE}" "${SERVICE_ACCOUNT}" "${SERVICE_ACCOUNT}" "${VAULT_URL}"
+
+echo "Ingress URL: http://${INGRESS_HOST}/hello"
