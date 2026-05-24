@@ -6,7 +6,8 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - http:
+    - host: __INGRESS_HOST__
+      http:
         paths:
           - path: /__DEPLOYMENT__
             pathType: Prefix
