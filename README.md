@@ -96,15 +96,22 @@ Check these first:
 - `kubernetes_host` points to the correct API server
 - `kubernetes_ca_cert` matches the cluster CA
 
-## Kubernetes deploy script
+## Deployment script
 
-`k8s/deploy.sh` supports passing the service account explicitly:
+`deploy.sh` is the single deployment entrypoint for both direct CLI use and Rundeck.
+
+Direct CLI usage:
 
 ```bash
-./k8s/deploy.sh <image> <tag> <namespace> <deployment> <container> <port> <replicas> <vault_url> <service_account>
+./deploy.sh <image> <tag> <namespace> <deployment> <container> <port> <replicas> <vault_url> <service_account>
 ```
 
 For this service, the service account should be `service-template`.
+
+Rundeck usage:
+
+- point the Rundeck job script directly at `infra/deploy.sh`
+- the same file understands `RD_OPTION_*` variables automatically
 
 ## Prometheus integration via ServiceMonitor
 
@@ -113,9 +120,8 @@ If your cluster already runs `kube-prometheus-stack`, the clean way to scrape a 
 This repo now includes:
 
 - `k8s/serviceMonitors/service-monitor.yaml` - generic ServiceMonitor template
-- `k8s/serviceMonitors/apply-service-monitor.sh` - helper that renders and applies it
 
-`k8s/deploy.sh` applies the ServiceMonitor automatically by default after the Service/Ingress are applied.
+`deploy.sh` renders and applies the ServiceMonitor automatically by default after the Service/Ingress are applied.
 
 Expected scrape target shape for each deployed service:
 
@@ -130,7 +136,7 @@ The generated ServiceMonitor:
 
 ### Toggle / customize
 
-Optional environment variables for `k8s/deploy.sh`:
+Optional environment variables for `deploy.sh`:
 
 ```bash
 export SERVICE_MONITOR_ENABLED=true
