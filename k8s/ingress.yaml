@@ -1,14 +1,4 @@
 apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: __DEPLOYMENT__-strip
-  namespace: __NAMESPACE__
-spec:
-  stripPrefix:
-    prefixes:
-      - /__DEPLOYMENT__
----
-apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
   name: __DEPLOYMENT__
@@ -19,8 +9,6 @@ spec:
   routes:
     - match: PathPrefix(`/__DEPLOYMENT__`)
       kind: Rule
-      middlewares:
-        - name: __DEPLOYMENT__-strip
       services:
         - name: __DEPLOYMENT__
           port: 80
