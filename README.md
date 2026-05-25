@@ -33,14 +33,14 @@ export VAULT_TOKEN=<root-or-admin-token>
 vault auth list
 vault read auth/kubernetes/config
 vault list auth/kubernetes/role
-vault read auth/kubernetes/role/service-template
+vault read auth/kubernetes/role/<deployment-name>
 ```
 
-Expected role details for this app:
+Expected role details for an app:
 
-- service account: `service-template`
+- service account: `<deployment-name>`
 - namespace: `default`
-- role: `service-template`
+- role: `<deployment-name>`
 
 ### 3) Get reviewer JWT and Kubernetes CA cert
 
@@ -69,10 +69,10 @@ vault write auth/kubernetes/config \
 ### 5) Test login with the app service account JWT
 
 ```bash
-JWT=$(kubectl create token service-template -n default)
+JWT=$(kubectl create token <deployment-name> -n default)
 
 vault write auth/kubernetes/login \
-  role=service-template \
+  role=<deployment-name> \
   jwt="$JWT"
 ```
 
@@ -80,7 +80,7 @@ Or get just the client token field:
 
 ```bash
 vault write -field=token auth/kubernetes/login \
-  role=service-template \
+  role=<deployment-name> \
   jwt="$JWT"
 ```
 
@@ -88,9 +88,9 @@ vault write -field=token auth/kubernetes/login \
 
 Check these first:
 
-- `bound_service_account_names` matches `service-template`
+- `bound_service_account_names` matches your deployment/service account name
 - `bound_service_account_namespaces` matches `default`
-- the pod actually runs with `serviceAccountName: service-template`
+- the pod actually runs with `serviceAccountName: <deployment-name>`
 - the JWT used for testing belongs to that service account
 - `token_reviewer_jwt` is valid for the current cluster
 - `kubernetes_host` points to the correct API server
@@ -106,7 +106,7 @@ Direct CLI usage:
 ./deploy.sh <image> <tag> <namespace> <deployment> <container> <port> <replicas> <vault_url> <service_account>
 ```
 
-For this service, the service account should be `service-template`.
+By default, the deployment script uses the deployment name as the service account name. You can still override it explicitly if needed.
 
 Rundeck usage:
 
@@ -143,7 +143,7 @@ Optional environment variables for `deploy.sh`:
 export SERVICE_MONITOR_ENABLED=true
 export MONITORING_NAMESPACE=monitoring
 export PROMETHEUS_RELEASE_LABEL=prometheus
-export METRICS_PATH=/service-template/q/metrics
+export METRICS_PATH=/<deployment-name>/q/metrics
 ```
 
 If your Prometheus Operator expects a different label than `release=prometheus`, set `PROMETHEUS_RELEASE_LABEL` before running the deploy script.
