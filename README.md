@@ -120,7 +120,7 @@ This repo now includes:
 Expected scrape target shape for each deployed service:
 
 - service port name: `http`
-- metrics path: `/q/metrics`
+- metrics path: `/<service-name>/q/metrics`
 
 The generated ServiceMonitor:
 
@@ -136,6 +136,7 @@ Optional environment variables for `k8s/deploy.sh`:
 export SERVICE_MONITOR_ENABLED=true
 export MONITORING_NAMESPACE=monitoring
 export PROMETHEUS_RELEASE_LABEL=prometheus
+export METRICS_PATH=/service-template/q/metrics
 ```
 
 If your Prometheus Operator expects a different label than `release=prometheus`, set `PROMETHEUS_RELEASE_LABEL` before running the deploy script.
