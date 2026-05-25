@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: __DEPLOYMENT__
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  namespaceSelector:
+    matchNames:
+      - __NAMESPACE__
+  selector:
+    matchLabels:
+      app: __DEPLOYMENT__
+  endpoints:
+    - port: http
+      path: /q/metrics
+      interval: 15s
+

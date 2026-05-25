@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: __DEPLOYMENT__
   namespace: __NAMESPACE__
+  labels:
+    app: __DEPLOYMENT__
 spec:
   selector:
     app: __DEPLOYMENT__

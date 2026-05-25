@@ -105,3 +105,37 @@ Check these first:
 ```
 
 For this service, the service account should be `service-template`.
+
+## Prometheus integration via ServiceMonitor
+
+If your cluster already runs `kube-prometheus-stack`, the clean way to scrape a deployed service is with a `ServiceMonitor`, not by hand-editing Prometheus config.
+
+This repo now includes:
+
+- `k8s/serviceMonitors/service-monitor.yaml` - generic ServiceMonitor template
+- `k8s/serviceMonitors/apply-service-monitor.sh` - helper that renders and applies it
+
+`k8s/deploy.sh` applies the ServiceMonitor automatically by default after the Service/Ingress are applied.
+
+Expected scrape target shape for each deployed service:
+
+- service port name: `http`
+- metrics path: `/q/metrics`
+
+The generated ServiceMonitor:
+
+- lives in namespace `monitoring`
+- targets the deployed service namespace
+- selects the Service by label `app: <deployment-name>`
+
+### Toggle / customize
+
+Optional environment variables for `k8s/deploy.sh`:
+
+```bash
+export SERVICE_MONITOR_ENABLED=true
+export MONITORING_NAMESPACE=monitoring
+export PROMETHEUS_RELEASE_LABEL=prometheus
+```
+
+If your Prometheus Operator expects a different label than `release=prometheus`, set `PROMETHEUS_RELEASE_LABEL` before running the deploy script.

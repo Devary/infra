@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOYMENT_TEMPLATE="${SCRIPT_DIR}/deployment.yaml"
 SERVICE_TEMPLATE="${SCRIPT_DIR}/service.yaml"
 INGRESS_TEMPLATE="${SCRIPT_DIR}/ingress.yaml"
+SERVICE_MONITOR_SCRIPT="${SCRIPT_DIR}/serviceMonitors/apply-service-monitor.sh"
 VAULT_AUTH_BOOTSTRAP_SCRIPT="${SCRIPT_DIR}/bootstrap-vault-k8s-auth.sh"
 VAULT_AUTH_CHECK_SCRIPT="${SCRIPT_DIR}/validate-vault-k8s-auth.sh"
 
@@ -34,6 +35,9 @@ GRPC_INGRESS_HOST="${11:-${GRPC_INGRESS_HOST:-grpc-${DEPLOYMENT}.192.168.178.41.
 VAULT_KV_MOUNT="${VAULT_KV_MOUNT:-anipoll}"
 VAULT_SECRET_PATH="${VAULT_SECRET_PATH:-${DEPLOYMENT}}"
 VAULT_BOOTSTRAP_ENABLED="${VAULT_BOOTSTRAP_ENABLED:-false}"
+SERVICE_MONITOR_ENABLED="${SERVICE_MONITOR_ENABLED:-true}"
+MONITORING_NAMESPACE="${MONITORING_NAMESPACE:-monitoring}"
+PROMETHEUS_RELEASE_LABEL="${PROMETHEUS_RELEASE_LABEL:-prometheus}"
 
 FULL_IMAGE="${IMAGE}:${TAG}"
 
@@ -54,6 +58,11 @@ fi
 
 if [[ ! -f "${DEPLOYMENT_TEMPLATE}" || ! -f "${SERVICE_TEMPLATE}" || ! -f "${INGRESS_TEMPLATE}" ]]; then
   echo "ERROR: deployment/service/ingress templates not found beside deploy.sh"
+  exit 1
+fi
+
+if [[ "${SERVICE_MONITOR_ENABLED}" == "true" && ! -f "${SERVICE_MONITOR_SCRIPT}" ]]; then
+  echo "ERROR: ServiceMonitor apply script not found at ${SERVICE_MONITOR_SCRIPT}"
   exit 1
 fi
 
@@ -82,6 +91,9 @@ echo "GRPC_INGRESS_HOST=${GRPC_INGRESS_HOST}"
 echo "VAULT_KV_MOUNT=${VAULT_KV_MOUNT}"
 echo "VAULT_SECRET_PATH=${VAULT_SECRET_PATH}"
 echo "VAULT_BOOTSTRAP_ENABLED=${VAULT_BOOTSTRAP_ENABLED}"
+echo "SERVICE_MONITOR_ENABLED=${SERVICE_MONITOR_ENABLED}"
+echo "MONITORING_NAMESPACE=${MONITORING_NAMESPACE}"
+echo "PROMETHEUS_RELEASE_LABEL=${PROMETHEUS_RELEASE_LABEL}"
 
 kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1 || kubectl create namespace "${NAMESPACE}"
 kubectl -n "${NAMESPACE}" get serviceaccount "${SERVICE_ACCOUNT}" >/dev/null 2>&1 || kubectl -n "${NAMESPACE}" create serviceaccount "${SERVICE_ACCOUNT}"
@@ -117,6 +129,12 @@ sed -e "s|__NAMESPACE__|${NAMESPACE}|g" \
     -e "s|__INGRESS_HOST__|${INGRESS_HOST}|g" \
     -e "s|__GRPC_INGRESS_HOST__|${GRPC_INGRESS_HOST}|g" \
     "${INGRESS_TEMPLATE}" | kubectl apply -f -
+
+if [[ "${SERVICE_MONITOR_ENABLED}" == "true" ]]; then
+  bash "${SERVICE_MONITOR_SCRIPT}" "${DEPLOYMENT}" "${NAMESPACE}" "${MONITORING_NAMESPACE}" "${PROMETHEUS_RELEASE_LABEL}"
+else
+  echo "Skipping ServiceMonitor apply (SERVICE_MONITOR_ENABLED=${SERVICE_MONITOR_ENABLED})"
+fi
 
 if [[ "${VAULT_BOOTSTRAP_ENABLED}" == "true" ]]; then
   bash "${VAULT_AUTH_BOOTSTRAP_SCRIPT}" "${NAMESPACE}" "${SERVICE_ACCOUNT}" "${SERVICE_ACCOUNT}" "${VAULT_URL}" "${VAULT_KV_MOUNT}" "${VAULT_SECRET_PATH}"
