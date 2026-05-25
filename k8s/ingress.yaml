@@ -24,19 +24,3 @@ spec:
       services:
         - name: __DEPLOYMENT__
           port: 80
----
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: __DEPLOYMENT__-grpc
-  namespace: __NAMESPACE__
-spec:
-  entryPoints:
-    - web
-  routes:
-    - match: Host(`__GRPC_INGRESS_HOST__`)
-      kind: Rule
-      services:
-        - name: __DEPLOYMENT__
-          port: 9000
-          scheme: h2c

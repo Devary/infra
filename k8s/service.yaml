@@ -7,12 +7,7 @@ spec:
   selector:
     app: __DEPLOYMENT__
   ports:
-    - name: http
-      protocol: TCP
+    - protocol: TCP
       port: 80
-      targetPort: "__PORT__"
-    - name: grpc
-      protocol: TCP
-      port: 9000
-      targetPort: "9000"
+      targetPort: __PORT__
   type: ClusterIP
