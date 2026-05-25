@@ -22,4 +22,5 @@ spec:
             - name: VAULT_URL
               value: "__VAULT_URL__"
           ports:
-            - containerPort: __PORT__
+            - containerPort: "__PORT__"
+            - containerPort: "9000"
