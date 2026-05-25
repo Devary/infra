@@ -1,7 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKSPACE_DIR="${RD_OPTION_WORKSPACE:-${WORKSPACE_DIR:-}}"
+
+if [[ -n "${WORKSPACE_DIR}" ]]; then
+  ROOT_DIR="${WORKSPACE_DIR}"
+elif [[ -d "${SCRIPT_DIR}/k8s" ]]; then
+  ROOT_DIR="${SCRIPT_DIR}"
+elif [[ -d "$(pwd)/k8s" ]]; then
+  ROOT_DIR="$(pwd)"
+else
+  ROOT_DIR="${SCRIPT_DIR}"
+fi
+
 K8S_DIR="${ROOT_DIR}/k8s"
 DEPLOYMENT_TEMPLATE="${K8S_DIR}/deployment.yaml"
 SERVICE_TEMPLATE="${K8S_DIR}/service.yaml"
@@ -182,6 +194,9 @@ echo "SERVICE_MONITOR_ENABLED=${SERVICE_MONITOR_ENABLED}"
 echo "MONITORING_NAMESPACE=${MONITORING_NAMESPACE}"
 echo "PROMETHEUS_RELEASE_LABEL=${PROMETHEUS_RELEASE_LABEL}"
 echo "METRICS_PATH=${METRICS_PATH}"
+echo "WORKSPACE_DIR=${WORKSPACE_DIR}"
+echo "ROOT_DIR=${ROOT_DIR}"
+echo "K8S_DIR=${K8S_DIR}"
 
 kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1 || kubectl create namespace "${NAMESPACE}"
 kubectl -n "${NAMESPACE}" get serviceaccount "${SERVICE_ACCOUNT}" >/dev/null 2>&1 || kubectl -n "${NAMESPACE}" create serviceaccount "${SERVICE_ACCOUNT}"
@@ -224,4 +239,3 @@ kubectl -n "${NAMESPACE}" get deployment "${DEPLOYMENT}" -o wide
 kubectl -n "${NAMESPACE}" get pods -l app="${DEPLOYMENT}" -o wide
 
 validate_vault_k8s_auth
-

@@ -111,6 +111,7 @@ For this service, the service account should be `service-template`.
 Rundeck usage:
 
 - point the Rundeck job script directly at `infra/deploy.sh`
+- set `RD_OPTION_WORKSPACE` to the checked-out infra repo/workspace path when Rundeck copies the script to a temp location
 - the same file understands `RD_OPTION_*` variables automatically
 
 ## Prometheus integration via ServiceMonitor
