@@ -39,6 +39,7 @@ if [[ -n "${RD_OPTION_IMAGE:-}" ]]; then
   MONITORING_NAMESPACE="${RD_OPTION_MONITORINGNAMESPACE:-${MONITORING_NAMESPACE:-monitoring}}"
   PROMETHEUS_RELEASE_LABEL="${RD_OPTION_PROMETHEUSRELEASELABEL:-${PROMETHEUS_RELEASE_LABEL:-prometheus}}"
   METRICS_PATH="${RD_OPTION_METRICSPATH:-${METRICS_PATH:-/${DEPLOYMENT}/q/metrics}}"
+  PROJECT_VERSION="${RD_OPTION_PROJECTVERSION:-${PROJECT_VERSION:-${TAG}}}"
 else
   IMAGE="${1:?image required}"
   TAG="${2:?tag required}"
@@ -58,6 +59,7 @@ else
   MONITORING_NAMESPACE="${MONITORING_NAMESPACE:-monitoring}"
   PROMETHEUS_RELEASE_LABEL="${PROMETHEUS_RELEASE_LABEL:-prometheus}"
   METRICS_PATH="${METRICS_PATH:-/${DEPLOYMENT}/q/metrics}"
+  PROJECT_VERSION="${PROJECT_VERSION:-${TAG}}"
 fi
 
 FULL_IMAGE="${IMAGE}:${TAG}"
@@ -194,6 +196,7 @@ echo "SERVICE_MONITOR_ENABLED=${SERVICE_MONITOR_ENABLED}"
 echo "MONITORING_NAMESPACE=${MONITORING_NAMESPACE}"
 echo "PROMETHEUS_RELEASE_LABEL=${PROMETHEUS_RELEASE_LABEL}"
 echo "METRICS_PATH=${METRICS_PATH}"
+echo "PROJECT_VERSION=${PROJECT_VERSION}"
 echo "WORKSPACE_DIR=${WORKSPACE_DIR}"
 echo "ROOT_DIR=${ROOT_DIR}"
 echo "K8S_DIR=${K8S_DIR}"
@@ -205,7 +208,7 @@ if kubectl get deployment "${DEPLOYMENT}" -n "${NAMESPACE}" >/dev/null 2>&1; the
   echo "Updating existing deployment ${DEPLOYMENT} in namespace ${NAMESPACE} to ${FULL_IMAGE}"
   kubectl -n "${NAMESPACE}" set image "deployment/${DEPLOYMENT}" "${CONTAINER}=${FULL_IMAGE}"
   kubectl -n "${NAMESPACE}" set env "deployment/${DEPLOYMENT}" VAULT_URL="${VAULT_URL}"
-  kubectl -n "${NAMESPACE}" patch deployment "${DEPLOYMENT}" --type=merge -p "{\"spec\":{\"template\":{\"spec\":{\"serviceAccountName\":\"${SERVICE_ACCOUNT}\"}}}}"
+  kubectl -n "${NAMESPACE}" patch deployment "${DEPLOYMENT}" --type=merge -p "{\"metadata\":{\"labels\":{\"app.kubernetes.io/version\":\"${PROJECT_VERSION}\"}},\"spec\":{\"template\":{\"metadata\":{\"labels\":{\"app.kubernetes.io/version\":\"${PROJECT_VERSION}\"}},\"spec\":{\"serviceAccountName\":\"${SERVICE_ACCOUNT}\"}}}}"
   kubectl -n "${NAMESPACE}" scale "deployment/${DEPLOYMENT}" --replicas="${REPLICAS}"
 else
   echo "Creating deployment ${DEPLOYMENT} in namespace ${NAMESPACE} with image ${FULL_IMAGE}"
@@ -217,7 +220,8 @@ else
     -e "s|__PORT__|${PORT}|g" \
     -e "s|__REPLICAS__|${REPLICAS}|g" \
     -e "s|__VAULT_URL__|${VAULT_URL}|g" \
-    -e "s|__SERVICE_ACCOUNT__|${SERVICE_ACCOUNT}|g"
+    -e "s|__SERVICE_ACCOUNT__|${SERVICE_ACCOUNT}|g" \
+    -e "s|__PROJECT_VERSION__|${PROJECT_VERSION}|g"
 
   render_apply "${SERVICE_TEMPLATE}" \
     -e "s|__NAMESPACE__|${NAMESPACE}|g" \

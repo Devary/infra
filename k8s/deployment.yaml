@@ -3,6 +3,9 @@ kind: Deployment
 metadata:
   name: __DEPLOYMENT__
   namespace: __NAMESPACE__
+  labels:
+    app: __DEPLOYMENT__
+    app.kubernetes.io/version: "__PROJECT_VERSION__"
 spec:
   replicas: __REPLICAS__
   selector:
@@ -12,6 +15,7 @@ spec:
     metadata:
       labels:
         app: __DEPLOYMENT__
+        app.kubernetes.io/version: "__PROJECT_VERSION__"
     spec:
       serviceAccountName: __SERVICE_ACCOUNT__
       containers:
