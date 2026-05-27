@@ -7,7 +7,7 @@ spec:
   entryPoints:
     - web
   routes:
-    - match: PathPrefix(`/__DEPLOYMENT__`)
+    - match: Host(`__INGRESS_HOST__`) || PathPrefix(`/__DEPLOYMENT__`)
       kind: Rule
       services:
         - name: __DEPLOYMENT__
