@@ -63,6 +63,7 @@ else
 fi
 
 FULL_IMAGE="${IMAGE}:${TAG}"
+ROLLOUT_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || { echo "ERROR: $1 is required"; exit 127; }
@@ -208,7 +209,7 @@ if kubectl get deployment "${DEPLOYMENT}" -n "${NAMESPACE}" >/dev/null 2>&1; the
   echo "Updating existing deployment ${DEPLOYMENT} in namespace ${NAMESPACE} to ${FULL_IMAGE}"
   kubectl -n "${NAMESPACE}" set image "deployment/${DEPLOYMENT}" "${CONTAINER}=${FULL_IMAGE}"
   kubectl -n "${NAMESPACE}" set env "deployment/${DEPLOYMENT}" VAULT_URL="${VAULT_URL}"
-  kubectl -n "${NAMESPACE}" patch deployment "${DEPLOYMENT}" --type=merge -p "{\"metadata\":{\"labels\":{\"app.kubernetes.io/version\":\"${PROJECT_VERSION}\"}},\"spec\":{\"template\":{\"metadata\":{\"labels\":{\"app.kubernetes.io/version\":\"${PROJECT_VERSION}\"}},\"spec\":{\"serviceAccountName\":\"${SERVICE_ACCOUNT}\"}}}}"
+  kubectl -n "${NAMESPACE}" patch deployment "${DEPLOYMENT}" --type=merge -p "{\"metadata\":{\"labels\":{\"app.kubernetes.io/version\":\"${PROJECT_VERSION}\"}},\"spec\":{\"template\":{\"metadata\":{\"labels\":{\"app.kubernetes.io/version\":\"${PROJECT_VERSION}\"},\"annotations\":{\"kubectl.kubernetes.io/restartedAt\":\"${ROLLOUT_TS}\"}},\"spec\":{\"serviceAccountName\":\"${SERVICE_ACCOUNT}\"}}}}"
   kubectl -n "${NAMESPACE}" scale "deployment/${DEPLOYMENT}" --replicas="${REPLICAS}"
 else
   echo "Creating deployment ${DEPLOYMENT} in namespace ${NAMESPACE} with image ${FULL_IMAGE}"
