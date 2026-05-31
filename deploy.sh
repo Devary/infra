@@ -34,7 +34,7 @@ if [[ -n "${RD_OPTION_IMAGE:-}" ]]; then
   GRPC_INGRESS_HOST="${RD_OPTION_GRPCINGRESSHOST:-${GRPC_INGRESS_HOST:-grpc-${DEPLOYMENT}.192.168.178.41.nip.io}}"
   VAULT_KV_MOUNT="${RD_OPTION_VAULTKVMOUNT:-${VAULT_KV_MOUNT:-anipoll}}"
   VAULT_SECRET_PATH="${RD_OPTION_VAULTSECRETPATH:-${VAULT_SECRET_PATH:-${DEPLOYMENT}}}"
-  VAULT_BOOTSTRAP_ENABLED="${RD_OPTION_VAULTBOOTSTRAP:-${VAULT_BOOTSTRAP_ENABLED:-false}}"
+  VAULT_BOOTSTRAP_ENABLED="${RD_OPTION_VAULTBOOTSTRAP:-${VAULT_BOOTSTRAP_ENABLED:-true}}"
   SERVICE_MONITOR_ENABLED="${RD_OPTION_SERVICEMONITORENABLED:-${SERVICE_MONITOR_ENABLED:-true}}"
   MONITORING_NAMESPACE="${RD_OPTION_MONITORINGNAMESPACE:-${MONITORING_NAMESPACE:-monitoring}}"
   PROMETHEUS_RELEASE_LABEL="${RD_OPTION_PROMETHEUSRELEASELABEL:-${PROMETHEUS_RELEASE_LABEL:-prometheus}}"
@@ -54,7 +54,7 @@ else
   GRPC_INGRESS_HOST="${11:-${GRPC_INGRESS_HOST:-grpc-${DEPLOYMENT}.192.168.178.41.nip.io}}"
   VAULT_KV_MOUNT="${VAULT_KV_MOUNT:-anipoll}"
   VAULT_SECRET_PATH="${VAULT_SECRET_PATH:-${DEPLOYMENT}}"
-  VAULT_BOOTSTRAP_ENABLED="${VAULT_BOOTSTRAP_ENABLED:-false}"
+  VAULT_BOOTSTRAP_ENABLED="${VAULT_BOOTSTRAP_ENABLED:-true}"
   SERVICE_MONITOR_ENABLED="${SERVICE_MONITOR_ENABLED:-true}"
   MONITORING_NAMESPACE="${MONITORING_NAMESPACE:-monitoring}"
   PROMETHEUS_RELEASE_LABEL="${PROMETHEUS_RELEASE_LABEL:-prometheus}"
@@ -97,8 +97,8 @@ apply_service_monitor() {
 }
 
 bootstrap_vault_k8s_auth() {
-  local role="${SERVICE_ACCOUNT}"
-  local policy_name="${SERVICE_ACCOUNT}"
+  local role="${DEPLOYMENT}"
+  local policy_name="${DEPLOYMENT}"
   local reviewer_sa="vault-auth-reviewer"
   local reviewer_binding="vault-auth-reviewer-${NAMESPACE}"
   local kube_host kube_ca_data kube_ca_file kube_ca_cert reviewer_jwt
@@ -159,7 +159,7 @@ EOF
   echo "Vault policy ${policy_name} ensured"
 
   vault write -address="${VAULT_ADDR}" "auth/kubernetes/role/${role}" bound_service_account_names="${SERVICE_ACCOUNT}" bound_service_account_namespaces="${NAMESPACE}" token_policies="${policy_name}" ttl="24h" >/dev/null
-  echo "Vault Kubernetes auth configured for role ${role}"
+  echo "Vault Kubernetes auth configured for role ${role} (service account ${SERVICE_ACCOUNT})"
 }
 
 validate_vault_k8s_auth() {
@@ -169,11 +169,12 @@ validate_vault_k8s_auth() {
   fi
 
   export VAULT_ADDR="${VAULT_URL}"
-  echo "Validating Vault Kubernetes login for service account ${SERVICE_ACCOUNT}"
+  local role="${DEPLOYMENT}"
+  echo "Validating Vault Kubernetes login for role ${role} using service account ${SERVICE_ACCOUNT}"
   local jwt
   jwt="$(kubectl -n "${NAMESPACE}" create token "${SERVICE_ACCOUNT}")"
-  vault write -address="${VAULT_ADDR}" -field=token auth/kubernetes/login role="${SERVICE_ACCOUNT}" jwt="${jwt}" >/dev/null
-  echo "Vault Kubernetes login check passed for role ${SERVICE_ACCOUNT}"
+  vault write -address="${VAULT_ADDR}" -field=token auth/kubernetes/login role="${role}" jwt="${jwt}" >/dev/null
+  echo "Vault Kubernetes login check passed for role ${role}"
 }
 
 [[ "${FULL_IMAGE}" == :* || "${FULL_IMAGE}" == *: ]] && { echo "ERROR: Invalid image reference: ${FULL_IMAGE}"; exit 1; }
