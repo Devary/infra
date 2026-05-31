@@ -12,9 +12,9 @@ spec:
     - name: http
       protocol: TCP
       port: 80
-      targetPort: "__PORT__"
+      targetPort: __PORT__
     - name: grpc
       protocol: TCP
       port: 9000
-      targetPort: "9000"
+      targetPort: 9000
   type: ClusterIP
