@@ -115,6 +115,13 @@ bootstrap_vault_k8s_auth() {
 
   export VAULT_ADDR="${VAULT_URL}"
 
+  if vault secrets list -format=json | grep -q "\"${VAULT_KV_MOUNT}/\""; then
+    echo "Vault KV mount ${VAULT_KV_MOUNT} already exists"
+  else
+    vault secrets enable -path="${VAULT_KV_MOUNT}" -version=2 kv >/dev/null
+    echo "Vault KV mount ${VAULT_KV_MOUNT} created"
+  fi
+
   kube_host="$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')"
   kube_ca_data="$(kubectl config view --raw --minify -o jsonpath='{.clusters[0].cluster.certificate-authority-data}')"
   kube_ca_file="$(kubectl config view --raw --minify -o jsonpath='{.clusters[0].cluster.certificate-authority}')"
@@ -149,6 +156,7 @@ path "${VAULT_KV_MOUNT}/metadata/${VAULT_SECRET_PATH}" {
   capabilities = ["read", "list"]
 }
 EOF
+  echo "Vault policy ${policy_name} ensured"
 
   vault write -address="${VAULT_ADDR}" "auth/kubernetes/role/${role}" bound_service_account_names="${SERVICE_ACCOUNT}" bound_service_account_namespaces="${NAMESPACE}" token_policies="${policy_name}" ttl="24h" >/dev/null
   echo "Vault Kubernetes auth configured for role ${role}"
