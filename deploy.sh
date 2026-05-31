@@ -115,11 +115,29 @@ bootstrap_vault_k8s_auth() {
 
   export VAULT_ADDR="${VAULT_URL}"
 
-  if vault secrets list -format=json | grep -q "\"${VAULT_KV_MOUNT}/\""; then
-    echo "Vault KV mount ${VAULT_KV_MOUNT} already exists"
+  set +e
+  mount_check_output="$(vault read -format=json "${VAULT_KV_MOUNT}/config" 2>&1)"
+  mount_check_status=$?
+  set -e
+
+  if [ "${mount_check_status}" -eq 0 ]; then
+    echo "Vault KV mount ${VAULT_KV_MOUNT} is reachable"
   else
-    vault secrets enable -path="${VAULT_KV_MOUNT}" -version=2 kv >/dev/null
-    echo "Vault KV mount ${VAULT_KV_MOUNT} created"
+    case "${mount_check_output}" in
+      *"permission denied"*|*"403"*)
+        echo "Vault token cannot inspect mount ${VAULT_KV_MOUNT}; continuing without mount bootstrap"
+        ;;
+      *"No value found at"*|*"404"*|*"No handler for route"*|*"unsupported path"*)
+        echo "Vault mount ${VAULT_KV_MOUNT} is missing or unavailable; attempting to create it"
+        vault secrets enable -path="${VAULT_KV_MOUNT}" -version=2 kv >/dev/null
+        echo "Vault KV mount ${VAULT_KV_MOUNT} created"
+        ;;
+      *)
+        echo "ERROR: Unexpected Vault response while checking mount ${VAULT_KV_MOUNT}"
+        echo "${mount_check_output}"
+        exit 1
+        ;;
+    esac
   fi
 
   kube_host="$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')"
