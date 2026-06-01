@@ -163,9 +163,29 @@ bootstrap_vault_k8s_auth() {
   reviewer_jwt="$(kubectl -n "${NAMESPACE}" create token "${reviewer_sa}")"
 
   vault auth enable kubernetes >/dev/null 2>&1 || true
-  vault write -address="${VAULT_ADDR}" auth/kubernetes/config kubernetes_host="${kube_host}" token_reviewer_jwt="${reviewer_jwt}" kubernetes_ca_cert="${kube_ca_cert}" >/dev/null
 
-  cat <<EOF | vault policy write "${policy_name}" - >/dev/null
+  set +e
+  kubernetes_config_output="$(vault write -address="${VAULT_ADDR}" auth/kubernetes/config kubernetes_host="${kube_host}" token_reviewer_jwt="${reviewer_jwt}" kubernetes_ca_cert="${kube_ca_cert}" 2>&1)"
+  kubernetes_config_status=$?
+  set -e
+
+  if [ "${kubernetes_config_status}" -ne 0 ]; then
+    case "${kubernetes_config_output}" in
+      *"permission denied"*|*"403"*)
+        echo "WARNING: Vault token cannot update auth/kubernetes/config; assuming Kubernetes auth is already configured"
+        ;;
+      *)
+        echo "ERROR: Failed to configure auth/kubernetes/config"
+        echo "${kubernetes_config_output}"
+        exit 1
+        ;;
+    esac
+  else
+    echo "Vault Kubernetes auth config ensured"
+  fi
+
+  set +e
+  policy_output="$(cat <<EOF | vault policy write "${policy_name}" - 2>&1
 path "${VAULT_KV_MOUNT}/data/${VAULT_SECRET_PATH}" {
   capabilities = ["read"]
 }
@@ -174,10 +194,44 @@ path "${VAULT_KV_MOUNT}/metadata/${VAULT_SECRET_PATH}" {
   capabilities = ["read", "list"]
 }
 EOF
-  echo "Vault policy ${policy_name} ensured"
+)"
+  policy_status=$?
+  set -e
 
-  vault write -address="${VAULT_ADDR}" "auth/kubernetes/role/${role}" bound_service_account_names="${SERVICE_ACCOUNT}" bound_service_account_namespaces="${NAMESPACE}" token_policies="${policy_name}" ttl="24h" >/dev/null
-  echo "Vault Kubernetes auth configured for role ${role} (service account ${SERVICE_ACCOUNT})"
+  if [ "${policy_status}" -ne 0 ]; then
+    case "${policy_output}" in
+      *"permission denied"*|*"403"*)
+        echo "WARNING: Vault token cannot write policy ${policy_name}; assuming it already exists"
+        ;;
+      *)
+        echo "ERROR: Failed to write Vault policy ${policy_name}"
+        echo "${policy_output}"
+        exit 1
+        ;;
+    esac
+  else
+    echo "Vault policy ${policy_name} ensured"
+  fi
+
+  set +e
+  role_output="$(vault write -address="${VAULT_ADDR}" "auth/kubernetes/role/${role}" bound_service_account_names="${SERVICE_ACCOUNT}" bound_service_account_namespaces="${NAMESPACE}" token_policies="${policy_name}" ttl="24h" 2>&1)"
+  role_status=$?
+  set -e
+
+  if [ "${role_status}" -ne 0 ]; then
+    case "${role_output}" in
+      *"permission denied"*|*"403"*)
+        echo "WARNING: Vault token cannot write Kubernetes role ${role}; assuming it already exists"
+        ;;
+      *)
+        echo "ERROR: Failed to configure Vault Kubernetes role ${role}"
+        echo "${role_output}"
+        exit 1
+        ;;
+    esac
+  else
+    echo "Vault Kubernetes auth configured for role ${role} (service account ${SERVICE_ACCOUNT})"
+  fi
 }
 
 validate_vault_k8s_auth() {
