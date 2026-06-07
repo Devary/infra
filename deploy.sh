@@ -27,6 +27,7 @@ if [[ -n "${RD_OPTION_IMAGE:-}" ]]; then
   DEPLOYMENT="${RD_OPTION_DEPLOYMENT:-${RD_OPTION_IMAGE##*/}}"
   CONTAINER="${RD_OPTION_CONTAINER:-${RD_OPTION_IMAGE##*/}}"
   PORT="${RD_OPTION_PORT:-8080}"
+  GRPC_PORT="${RD_OPTION_GRPCPORT:-9000}"
   REPLICAS="${RD_OPTION_REPLICAS:-1}"
   VAULT_URL="${RD_OPTION_VAULTURL:-${VAULT_URL:-http://192.168.178.41:8200}}"
   SERVICE_ACCOUNT="${RD_OPTION_SERVICEACCOUNT:-${DEPLOYMENT}}"
@@ -38,7 +39,7 @@ if [[ -n "${RD_OPTION_IMAGE:-}" ]]; then
   SERVICE_MONITOR_ENABLED="${RD_OPTION_SERVICEMONITORENABLED:-${SERVICE_MONITOR_ENABLED:-true}}"
   MONITORING_NAMESPACE="${RD_OPTION_MONITORINGNAMESPACE:-${MONITORING_NAMESPACE:-monitoring}}"
   PROMETHEUS_RELEASE_LABEL="${RD_OPTION_PROMETHEUSRELEASELABEL:-${PROMETHEUS_RELEASE_LABEL:-prometheus}}"
-  METRICS_PATH="${RD_OPTION_METRICSPATH:-${METRICS_PATH:-/${DEPLOYMENT}/q/metrics}}"
+  METRICS_PATH="${RD_OPTION_METRICSPATH:-${METRICS_PATH:-/q/metrics}}"
   PROJECT_VERSION="${RD_OPTION_PROJECTVERSION:-${PROJECT_VERSION:-${TAG}}}"
 else
   IMAGE="${1:?image required}"
@@ -52,13 +53,14 @@ else
   SERVICE_ACCOUNT="${9:-${DEPLOYMENT}}"
   INGRESS_HOST="${10:-${INGRESS_HOST:-${DEPLOYMENT}.192.168.178.41.nip.io}}"
   GRPC_INGRESS_HOST="${11:-${GRPC_INGRESS_HOST:-grpc-${DEPLOYMENT}.192.168.178.41.nip.io}}"
+  GRPC_PORT="${12:-${GRPC_PORT:-9000}}"
   VAULT_KV_MOUNT="${VAULT_KV_MOUNT:-kv}"
   VAULT_SECRET_PATH="${VAULT_SECRET_PATH:-${DEPLOYMENT}}"
   VAULT_BOOTSTRAP_ENABLED="${VAULT_BOOTSTRAP_ENABLED:-true}"
   SERVICE_MONITOR_ENABLED="${SERVICE_MONITOR_ENABLED:-true}"
   MONITORING_NAMESPACE="${MONITORING_NAMESPACE:-monitoring}"
   PROMETHEUS_RELEASE_LABEL="${PROMETHEUS_RELEASE_LABEL:-prometheus}"
-  METRICS_PATH="${METRICS_PATH:-/${DEPLOYMENT}/q/metrics}"
+  METRICS_PATH="${METRICS_PATH:-/q/metrics}"
   PROJECT_VERSION="${PROJECT_VERSION:-${TAG}}"
 fi
 
@@ -266,6 +268,7 @@ echo "NAMESPACE=${NAMESPACE}"
 echo "DEPLOYMENT=${DEPLOYMENT}"
 echo "CONTAINER=${CONTAINER}"
 echo "PORT=${PORT}"
+echo "GRPC_PORT=${GRPC_PORT}"
 echo "REPLICAS=${REPLICAS}"
 echo "VAULT_URL=${VAULT_URL}"
 echo "SERVICE_ACCOUNT=${SERVICE_ACCOUNT}"
@@ -287,29 +290,30 @@ kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1 || kubectl create namespace
 kubectl -n "${NAMESPACE}" get serviceaccount "${SERVICE_ACCOUNT}" >/dev/null 2>&1 || kubectl -n "${NAMESPACE}" create serviceaccount "${SERVICE_ACCOUNT}"
 
 if kubectl get deployment "${DEPLOYMENT}" -n "${NAMESPACE}" >/dev/null 2>&1; then
-  echo "Updating existing deployment ${DEPLOYMENT} in namespace ${NAMESPACE} to ${FULL_IMAGE}"
-  kubectl -n "${NAMESPACE}" set image "deployment/${DEPLOYMENT}" "${CONTAINER}=${FULL_IMAGE}"
-  kubectl -n "${NAMESPACE}" set env "deployment/${DEPLOYMENT}" VAULT_URL="${VAULT_URL}"
-  kubectl -n "${NAMESPACE}" patch deployment "${DEPLOYMENT}" --type=merge -p "{\"metadata\":{\"labels\":{\"app.kubernetes.io/version\":\"${PROJECT_VERSION}\"}},\"spec\":{\"template\":{\"metadata\":{\"labels\":{\"app.kubernetes.io/version\":\"${PROJECT_VERSION}\"},\"annotations\":{\"kubectl.kubernetes.io/restartedAt\":\"${ROLLOUT_TS}\"}},\"spec\":{\"serviceAccountName\":\"${SERVICE_ACCOUNT}\"}}}}"
-  kubectl -n "${NAMESPACE}" scale "deployment/${DEPLOYMENT}" --replicas="${REPLICAS}"
+  echo "Reconciling existing deployment ${DEPLOYMENT} in namespace ${NAMESPACE} to ${FULL_IMAGE}"
 else
   echo "Creating deployment ${DEPLOYMENT} in namespace ${NAMESPACE} with image ${FULL_IMAGE}"
-  render_apply "${DEPLOYMENT_TEMPLATE}" \
-    -e "s|__NAMESPACE__|${NAMESPACE}|g" \
-    -e "s|__DEPLOYMENT__|${DEPLOYMENT}|g" \
-    -e "s|__CONTAINER__|${CONTAINER}|g" \
-    -e "s|__IMAGE__|${FULL_IMAGE}|g" \
-    -e "s|__PORT__|${PORT}|g" \
-    -e "s|__REPLICAS__|${REPLICAS}|g" \
-    -e "s|__VAULT_URL__|${VAULT_URL}|g" \
-    -e "s|__SERVICE_ACCOUNT__|${SERVICE_ACCOUNT}|g" \
-    -e "s|__PROJECT_VERSION__|${PROJECT_VERSION}|g"
-
-  render_apply "${SERVICE_TEMPLATE}" \
-    -e "s|__NAMESPACE__|${NAMESPACE}|g" \
-    -e "s|__DEPLOYMENT__|${DEPLOYMENT}|g" \
-    -e "s|__PORT__|${PORT}|g"
 fi
+
+render_apply "${DEPLOYMENT_TEMPLATE}" \
+  -e "s|__NAMESPACE__|${NAMESPACE}|g" \
+  -e "s|__DEPLOYMENT__|${DEPLOYMENT}|g" \
+  -e "s|__CONTAINER__|${CONTAINER}|g" \
+  -e "s|__IMAGE__|${FULL_IMAGE}|g" \
+  -e "s|__PORT__|${PORT}|g" \
+  -e "s|__GRPC_PORT__|${GRPC_PORT}|g" \
+  -e "s|__REPLICAS__|${REPLICAS}|g" \
+  -e "s|__VAULT_URL__|${VAULT_URL}|g" \
+  -e "s|__SERVICE_ACCOUNT__|${SERVICE_ACCOUNT}|g" \
+  -e "s|__PROJECT_VERSION__|${PROJECT_VERSION}|g"
+
+render_apply "${SERVICE_TEMPLATE}" \
+  -e "s|__NAMESPACE__|${NAMESPACE}|g" \
+  -e "s|__DEPLOYMENT__|${DEPLOYMENT}|g" \
+  -e "s|__PORT__|${PORT}|g" \
+  -e "s|__GRPC_PORT__|${GRPC_PORT}|g"
+
+kubectl -n "${NAMESPACE}" patch deployment "${DEPLOYMENT}" --type=merge -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"kubectl.kubernetes.io/restartedAt\":\"${ROLLOUT_TS}\"}}}}}"
 
 render_apply "${INGRESS_TEMPLATE}" \
   -e "s|__NAMESPACE__|${NAMESPACE}|g" \
