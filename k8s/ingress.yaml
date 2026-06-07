@@ -38,5 +38,5 @@ spec:
       kind: Rule
       services:
         - name: __DEPLOYMENT__
-          port: 9000
+          port: __GRPC_PORT__
           scheme: h2c

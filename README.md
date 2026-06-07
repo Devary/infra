@@ -127,7 +127,7 @@ This repo now includes:
 Expected scrape target shape for each deployed service:
 
 - service port name: `http`
-- metrics path: `/<service-name>/q/metrics`
+- metrics path: `/q/metrics`
 
 The generated ServiceMonitor:
 
@@ -143,7 +143,7 @@ Optional environment variables for `deploy.sh`:
 export SERVICE_MONITOR_ENABLED=true
 export MONITORING_NAMESPACE=monitoring
 export PROMETHEUS_RELEASE_LABEL=prometheus
-export METRICS_PATH=/<deployment-name>/q/metrics
+export METRICS_PATH=/q/metrics
 ```
 
 If your Prometheus Operator expects a different label than `release=prometheus`, set `PROMETHEUS_RELEASE_LABEL` before running the deploy script.

@@ -319,7 +319,8 @@ render_apply "${INGRESS_TEMPLATE}" \
   -e "s|__NAMESPACE__|${NAMESPACE}|g" \
   -e "s|__DEPLOYMENT__|${DEPLOYMENT}|g" \
   -e "s|__INGRESS_HOST__|${INGRESS_HOST}|g" \
-  -e "s|__GRPC_INGRESS_HOST__|${GRPC_INGRESS_HOST}|g"
+  -e "s|__GRPC_INGRESS_HOST__|${GRPC_INGRESS_HOST}|g" \
+  -e "s|__GRPC_PORT__|${GRPC_PORT}|g"
 
 apply_service_monitor
 bootstrap_vault_k8s_auth

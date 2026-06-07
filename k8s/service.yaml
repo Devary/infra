@@ -15,6 +15,6 @@ spec:
       targetPort: __PORT__
     - name: grpc
       protocol: TCP
-      port: 9000
-      targetPort: 9000
+      port: __GRPC_PORT__
+      targetPort: __GRPC_PORT__
   type: ClusterIP

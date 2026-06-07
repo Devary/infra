@@ -27,4 +27,4 @@ spec:
               value: "__VAULT_URL__"
           ports:
             - containerPort: __PORT__
-            - containerPort: 9000
+            - containerPort: __GRPC_PORT__
