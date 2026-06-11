@@ -25,6 +25,14 @@ spec:
           env:
             - name: VAULT_URL
               value: "__VAULT_URL__"
+            - name: JWT_ISSUER
+              value: "__JWT_ISSUER__"
+            - name: KEYCLOAK_TOKEN_URL
+              value: "__KEYCLOAK_TOKEN_URL__"
+            - name: KEYCLOAK_CLIENT_ID
+              value: "__KEYCLOAK_CLIENT_ID__"
+            - name: GATEWAY_AUTH_ENABLED
+              value: "__GATEWAY_AUTH_ENABLED__"
           ports:
             - containerPort: __PORT__
             - containerPort: __GRPC_PORT__
