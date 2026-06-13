@@ -303,6 +303,24 @@ require_cmd kubectl
   exit 1
 }
 
+validate_auth_env() {
+  local missing=()
+
+  [[ -n "${JWT_ISSUER}" ]] || missing+=("JWT_ISSUER")
+  [[ -n "${KEYCLOAK_TOKEN_URL}" ]] || missing+=("KEYCLOAK_TOKEN_URL")
+  [[ -n "${KEYCLOAK_CLIENT_ID}" ]] || missing+=("KEYCLOAK_CLIENT_ID")
+  [[ -n "${GATEWAY_AUTH_ENABLED}" ]] || missing+=("GATEWAY_AUTH_ENABLED")
+
+  if (( ${#missing[@]} > 0 )); then
+    echo "ERROR: missing auth config after Vault hydration: ${missing[*]}"
+    echo "       checked Vault path ${VAULT_KV_MOUNT}/${VAULT_SECRET_PATH} and explicit env/Rundeck options"
+    exit 1
+  fi
+}
+
+hydrate_auth_env_from_vault
+validate_auth_env
+
 echo "IMAGE=${IMAGE}"
 echo "TAG=${TAG}"
 echo "FULL_IMAGE=${FULL_IMAGE}"
@@ -328,24 +346,6 @@ echo "JWT_ISSUER=${JWT_ISSUER}"
 echo "KEYCLOAK_TOKEN_URL=${KEYCLOAK_TOKEN_URL}"
 echo "KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID}"
 echo "GATEWAY_AUTH_ENABLED=${GATEWAY_AUTH_ENABLED}"
-validate_auth_env() {
-  local missing=()
-
-  [[ -n "${JWT_ISSUER}" ]] || missing+=("JWT_ISSUER")
-  [[ -n "${KEYCLOAK_TOKEN_URL}" ]] || missing+=("KEYCLOAK_TOKEN_URL")
-  [[ -n "${KEYCLOAK_CLIENT_ID}" ]] || missing+=("KEYCLOAK_CLIENT_ID")
-  [[ -n "${GATEWAY_AUTH_ENABLED}" ]] || missing+=("GATEWAY_AUTH_ENABLED")
-
-  if (( ${#missing[@]} > 0 )); then
-    echo "ERROR: missing auth config after Vault hydration: ${missing[*]}"
-    echo "       checked Vault path ${VAULT_KV_MOUNT}/${VAULT_SECRET_PATH} and explicit env/Rundeck options"
-    exit 1
-  fi
-}
-
-hydrate_auth_env_from_vault
-validate_auth_env
-
 echo "WORKSPACE_DIR=${WORKSPACE_DIR}"
 echo "ROOT_DIR=${ROOT_DIR}"
 echo "K8S_DIR=${K8S_DIR}"
