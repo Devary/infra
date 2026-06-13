@@ -89,28 +89,36 @@ vault_kv_get_field() {
   VAULT_ADDR="${VAULT_URL}" vault kv get -mount="${VAULT_KV_MOUNT}" -field="${field}" "${VAULT_SECRET_PATH}" 2>/dev/null
 }
 
-hydrate_auth_env_from_vault() {
+hydrate_one_auth_field() {
+  local var_name="$1"
+  local current_value="$2"
   local fetched=""
 
-  [[ -n "${JWT_ISSUER}" ]] || {
-    fetched="$(vault_kv_get_field JWT_ISSUER || true)"
-    [[ -n "${fetched}" ]] && JWT_ISSUER="${fetched}"
-  }
+  if [[ -n "${current_value}" ]]; then
+    echo "Auth config ${var_name}: using explicit value from env/Rundeck option"
+    printf -v "${var_name}" '%s' "${current_value}"
+    return 0
+  fi
 
-  [[ -n "${KEYCLOAK_TOKEN_URL}" ]] || {
-    fetched="$(vault_kv_get_field KEYCLOAK_TOKEN_URL || true)"
-    [[ -n "${fetched}" ]] && KEYCLOAK_TOKEN_URL="${fetched}"
-  }
+  if ! command -v vault >/dev/null 2>&1; then
+    echo "Auth config ${var_name}: vault CLI not found; cannot hydrate from Vault"
+    return 0
+  fi
 
-  [[ -n "${KEYCLOAK_CLIENT_ID}" ]] || {
-    fetched="$(vault_kv_get_field KEYCLOAK_CLIENT_ID || true)"
-    [[ -n "${fetched}" ]] && KEYCLOAK_CLIENT_ID="${fetched}"
-  }
+  fetched="$(vault_kv_get_field "${var_name}" || true)"
+  if [[ -n "${fetched}" ]]; then
+    echo "Auth config ${var_name}: loaded from Vault path ${VAULT_KV_MOUNT}/${VAULT_SECRET_PATH}"
+    printf -v "${var_name}" '%s' "${fetched}"
+  else
+    echo "Auth config ${var_name}: not found in env and Vault returned empty/unreadable value"
+  fi
+}
 
-  [[ -n "${GATEWAY_AUTH_ENABLED}" ]] || {
-    fetched="$(vault_kv_get_field GATEWAY_AUTH_ENABLED || true)"
-    [[ -n "${fetched}" ]] && GATEWAY_AUTH_ENABLED="${fetched}"
-  }
+hydrate_auth_env_from_vault() {
+  hydrate_one_auth_field JWT_ISSUER "${JWT_ISSUER}"
+  hydrate_one_auth_field KEYCLOAK_TOKEN_URL "${KEYCLOAK_TOKEN_URL}"
+  hydrate_one_auth_field KEYCLOAK_CLIENT_ID "${KEYCLOAK_CLIENT_ID}"
+  hydrate_one_auth_field GATEWAY_AUTH_ENABLED "${GATEWAY_AUTH_ENABLED}"
 }
 
 render_apply() {
@@ -318,6 +326,18 @@ validate_auth_env() {
   fi
 }
 
+echo "SCRIPT_PATH=${BASH_SOURCE[0]}"
+echo "SCRIPT_DIR=${SCRIPT_DIR}"
+echo "RUN_AS_USER=$(id -un 2>/dev/null || whoami 2>/dev/null || echo unknown)"
+echo "RUN_AS_UID=$(id -u 2>/dev/null || echo unknown)"
+echo "PWD=$(pwd)"
+if command -v vault >/dev/null 2>&1; then
+  echo "VAULT_CLI=$(command -v vault)"
+else
+  echo "VAULT_CLI=NOT_FOUND"
+fi
+
+echo "Hydrating auth config from env/Rundeck/Vault..."
 hydrate_auth_env_from_vault
 validate_auth_env
 
