@@ -79,6 +79,40 @@ require_cmd() {
   command -v "$1" >/dev/null 2>&1 || { echo "ERROR: $1 is required"; exit 127; }
 }
 
+vault_kv_get_field() {
+  local field="$1"
+
+  if ! command -v vault >/dev/null 2>&1; then
+    return 1
+  fi
+
+  VAULT_ADDR="${VAULT_URL}" vault kv get -mount="${VAULT_KV_MOUNT}" -field="${field}" "${VAULT_SECRET_PATH}" 2>/dev/null
+}
+
+hydrate_auth_env_from_vault() {
+  local fetched=""
+
+  [[ -n "${JWT_ISSUER}" ]] || {
+    fetched="$(vault_kv_get_field JWT_ISSUER || true)"
+    [[ -n "${fetched}" ]] && JWT_ISSUER="${fetched}"
+  }
+
+  [[ -n "${KEYCLOAK_TOKEN_URL}" ]] || {
+    fetched="$(vault_kv_get_field KEYCLOAK_TOKEN_URL || true)"
+    [[ -n "${fetched}" ]] && KEYCLOAK_TOKEN_URL="${fetched}"
+  }
+
+  [[ -n "${KEYCLOAK_CLIENT_ID}" ]] || {
+    fetched="$(vault_kv_get_field KEYCLOAK_CLIENT_ID || true)"
+    [[ -n "${fetched}" ]] && KEYCLOAK_CLIENT_ID="${fetched}"
+  }
+
+  [[ -n "${GATEWAY_AUTH_ENABLED}" ]] || {
+    fetched="$(vault_kv_get_field GATEWAY_AUTH_ENABLED || true)"
+    [[ -n "${fetched}" ]] && GATEWAY_AUTH_ENABLED="${fetched}"
+  }
+}
+
 render_apply() {
   local template="$1"
   shift
@@ -294,6 +328,8 @@ echo "JWT_ISSUER=${JWT_ISSUER}"
 echo "KEYCLOAK_TOKEN_URL=${KEYCLOAK_TOKEN_URL}"
 echo "KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID}"
 echo "GATEWAY_AUTH_ENABLED=${GATEWAY_AUTH_ENABLED}"
+hydrate_auth_env_from_vault
+
 echo "WORKSPACE_DIR=${WORKSPACE_DIR}"
 echo "ROOT_DIR=${ROOT_DIR}"
 echo "K8S_DIR=${K8S_DIR}"
