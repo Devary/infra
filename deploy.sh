@@ -119,7 +119,19 @@ hydrate_one_auth_field() {
   fi
 }
 
+all_auth_env_present() {
+  [[ -n "${JWT_ISSUER}" ]] \
+    && [[ -n "${KEYCLOAK_TOKEN_URL}" ]] \
+    && [[ -n "${KEYCLOAK_CLIENT_ID}" ]] \
+    && [[ -n "${GATEWAY_AUTH_ENABLED}" ]]
+}
+
 hydrate_auth_env_from_vault() {
+  if all_auth_env_present; then
+    echo "All auth config provided explicitly by env/Rundeck plugin; skipping Vault fallback"
+    return 0
+  fi
+
   hydrate_one_auth_field JWT_ISSUER "${JWT_ISSUER}"
   hydrate_one_auth_field KEYCLOAK_TOKEN_URL "${KEYCLOAK_TOKEN_URL}"
   hydrate_one_auth_field KEYCLOAK_CLIENT_ID "${KEYCLOAK_CLIENT_ID}"
@@ -347,7 +359,7 @@ else
   echo "VAULT_TOKEN_PRESENT=no"
 fi
 
-echo "Hydrating auth config from env/Rundeck/Vault..."
+echo "Resolving auth config from env/Rundeck plugin first, then Vault fallback..."
 hydrate_auth_env_from_vault
 validate_auth_env
 
