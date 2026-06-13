@@ -83,7 +83,7 @@ vault_kv_get_field() {
   local field="$1"
 
   if ! command -v vault >/dev/null 2>&1; then
-    return 1
+    return 127
   fi
 
   VAULT_ADDR="${VAULT_URL}" vault kv get -mount="${VAULT_KV_MOUNT}" -field="${field}" "${VAULT_SECRET_PATH}" 2>/dev/null
@@ -93,6 +93,7 @@ hydrate_one_auth_field() {
   local var_name="$1"
   local current_value="$2"
   local fetched=""
+  local status=0
 
   if [[ -n "${current_value}" ]]; then
     echo "Auth config ${var_name}: using explicit value from env/Rundeck option"
@@ -105,12 +106,16 @@ hydrate_one_auth_field() {
     return 0
   fi
 
-  fetched="$(vault_kv_get_field "${var_name}" || true)"
-  if [[ -n "${fetched}" ]]; then
+  set +e
+  fetched="$(vault_kv_get_field "${var_name}")"
+  status=$?
+  set -e
+
+  if [[ ${status} -eq 0 && -n "${fetched}" ]]; then
     echo "Auth config ${var_name}: loaded from Vault path ${VAULT_KV_MOUNT}/${VAULT_SECRET_PATH}"
     printf -v "${var_name}" '%s' "${fetched}"
   else
-    echo "Auth config ${var_name}: not found in env and Vault returned empty/unreadable value"
+    echo "Auth config ${var_name}: Vault read failed or returned empty (exit=${status})"
   fi
 }
 
@@ -335,6 +340,11 @@ if command -v vault >/dev/null 2>&1; then
   echo "VAULT_CLI=$(command -v vault)"
 else
   echo "VAULT_CLI=NOT_FOUND"
+fi
+if [[ -n "${VAULT_TOKEN:-}" ]]; then
+  echo "VAULT_TOKEN_PRESENT=yes"
+else
+  echo "VAULT_TOKEN_PRESENT=no"
 fi
 
 echo "Hydrating auth config from env/Rundeck/Vault..."
