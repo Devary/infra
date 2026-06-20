@@ -1,0 +1,5 @@
+.idea/
+env.sh
+docker/jenkins/jenkins_home/
+jenkins/jenkins_home/
+*.versionsBackup
