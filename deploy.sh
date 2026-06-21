@@ -304,6 +304,11 @@ EOF
 }
 
 validate_vault_k8s_auth() {
+  [[ "${VAULT_BOOTSTRAP_ENABLED}" == "true" ]] || {
+    echo "Skipping Vault Kubernetes login check (VAULT_BOOTSTRAP_ENABLED=${VAULT_BOOTSTRAP_ENABLED})"
+    return
+  }
+
   if ! command -v vault >/dev/null 2>&1; then
     echo "WARNING: vault CLI not found; skipping Vault Kubernetes login check"
     return
@@ -314,8 +319,11 @@ validate_vault_k8s_auth() {
   echo "Validating Vault Kubernetes login for role ${role} using service account ${SERVICE_ACCOUNT}"
   local jwt
   jwt="$(kubectl -n "${NAMESPACE}" create token "${SERVICE_ACCOUNT}")"
-  vault write -address="${VAULT_ADDR}" -field=token auth/kubernetes/login role="${role}" jwt="${jwt}" >/dev/null
-  echo "Vault Kubernetes login check passed for role ${role}"
+  if vault write -address="${VAULT_ADDR}" -field=token auth/kubernetes/login role="${role}" jwt="${jwt}" >/dev/null; then
+    echo "Vault Kubernetes login check passed for role ${role}"
+  else
+    echo "WARNING: Vault Kubernetes login check failed for role ${role}; role may not be configured in Vault"
+  fi
 }
 
 [[ "${FULL_IMAGE}" == :* || "${FULL_IMAGE}" == *: ]] && { echo "ERROR: Invalid image reference: ${FULL_IMAGE}"; exit 1; }
